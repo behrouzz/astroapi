@@ -1,6 +1,7 @@
 """Earth Orientation Parameters from the IERS data centre (numpy + stdlib only)."""
 import os
 import ssl
+import tempfile
 import time as _time
 import urllib.request
 from pathlib import Path
@@ -9,7 +10,9 @@ import numpy as np
 
 from .time import any2mjd, leap_seconds_mjd
 
-DEFAULT_DATA_DIR = Path(os.environ.get("IERS_DATA_DIR", Path(__file__).parent / "data"))
+# Serverless platforms (Vercel) only allow writing to the temp directory.
+_LOCAL_DATA = Path(tempfile.gettempdir()) / "iers" if os.environ.get("VERCEL") else Path(__file__).parent / "data"
+DEFAULT_DATA_DIR = Path(os.environ.get("IERS_DATA_DIR", _LOCAL_DATA))
 _IERS = "https://datacenter.iers.org/data/latestVersion/"
 _OBSPM = "https://hpiers.obspm.fr/iers/series/longterm/"
 
