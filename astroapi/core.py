@@ -4,6 +4,7 @@ Every function is published as ``POST /<group>/<name>`` taking a JSON body whose
 the ERFA argument names, and returning ``{"function", "result", "warnings"}``.
 Scalars and nested lists (vectors / matrices / arrays of values) are all accepted.
 """
+import inspect
 import math
 import re
 import warnings
@@ -26,7 +27,7 @@ class FunctionInfo:
         self.name = name
         self.func = getattr(erfa, name)
         self.ufunc = getattr(erfa.ufunc, name)
-        doc = self.func.__doc__ or ""
+        doc = inspect.cleandoc(self.func.__doc__ or "")  # <3.13 keeps docstring indentation
         head = re.split(r"\n(?:Parameters|Returns|Notes)\n", doc)[0]
         self.summary = " ".join(head.split())
         params = doc.partition("Parameters\n")[2].partition("Returns\n")[0]

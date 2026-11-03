@@ -5,6 +5,7 @@ Most values follow the SOFA/ERFA validation tests and cookbook examples
 ``DEFAULTS`` supplies a value per argument name; ``OVERRIDES`` fixes the functions in
 which a name means something different (e.g. ``a``/``b`` are vectors in ``pap``).
 """
+import inspect
 import re
 
 import erfa
@@ -121,7 +122,7 @@ _UNIQUE["apcs"] = {"date1": _JD1, "date2": _JD2,
 
 
 def _input_names(name: str) -> list[str]:
-    doc = getattr(erfa, name).__doc__.partition("Parameters\n")[2].partition("Returns\n")[0]
+    doc = inspect.cleandoc(getattr(erfa, name).__doc__).partition("Parameters\n")[2].partition("Returns\n")[0]
     return re.findall(r"^(\w+) : ", doc, re.M)[: getattr(erfa.ufunc, name).nin]
 
 
