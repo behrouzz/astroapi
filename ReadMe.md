@@ -48,7 +48,21 @@ POST a JSON object whose keys are the ERFA argument names; scalars and nested li
 {"utc1": 2400000.5, "utc2": 53736.0}
 ```
 
-## Sky matrix: `POST /sky/skymatrix` (not SOFA; added by Behrouz Safari)
+## Checking the examples
+
+`python check_examples.py` (from `astroapi/`) runs these checks:
+
+- every SOFA endpoint is called with its example and compared with a direct `erfa` call;
+- the EOP endpoints are compared with the IERS README example (and the original `iers` package, if installed);
+- `/sky/skymatrix` is compared with its reference implementation;
+- `/sky/solarsystem` is compared with NASA JPL Horizons values.
+
+## Extra endpoints
+
+All the endpoints in this section were added by Behrouz Safari and are **not part of SOFA**
+(they use ERFA and other data, but they are not SOFA/ERFA functions).
+
+### Sky matrix: `POST /sky/skymatrix`
 
 Returns one 3x3 matrix **M** that turns an ICRS unit vector `[x, y, z]` into a local
 topocentric vector `[North, East, Zenith]` for an observer at a given UTC time and place:
@@ -66,7 +80,7 @@ Get `dut1`, `xp`, `yp` from `/eop/get_eop` (its `xp`, `yp` are in arcseconds: mu
 
 The response is `{"matrix": [[...], [...], [...]], "warnings": []}` (rows are North, East, Zenith).
 
-## Sun, Moon and planets: `POST /sky/solarsystem` (not SOFA; added by Behrouz Safari)
+### Sun, Moon and planets: `POST /sky/solarsystem`
 
 Position and appearance of the Sun, Moon and the seven planets for an observer at a UTC time and place,
 computed with ERFA (`epv00`, `moon98`, `plan94`, `apco13`, `atciq`, `atioq`), light-time corrected.
@@ -94,13 +108,12 @@ and inner planets within a few arcsec; the limit is `plan94`). Magnitudes are ty
 Horizons (more for Mercury at extreme phase angles). Based on a reference script by Behrouz Safari, with the
 planetary angular-diameter constants corrected to the IAU equatorial radii.
 
-## Checking the examples
+### Earth orientation parameters (`/eop`)
 
-`python check_examples.py` (from `astroapi/`) calls every endpoint with its example and
-compares the result with a direct `erfa` call, and checks the EOP endpoints against the IERS README and
-`/sky/skymatrix` against its reference implementation and `/sky/solarsystem` against JPL Horizons values.
-
-## Earth orientation parameters (`/eop`, not SOFA; added by Behrouz Safari)
+- `POST /eop/get_eop`: body `{"t": <Julian Date or "YYYY-MM-DD HH:MM:SS">, "kind": 1}`. Returns the
+  interpolated polar motion `px`, `py` (arcsec), `ut1_utc` (s) and `dx`, `dy` (mas), and the IERS
+  bulletin used (`kind` 1: finals.all; 2: EOP 14 C04; 3: EOP C01; 4: NAO).
+- `POST /eop/leap_seconds`: body `{"t": ...}`. Returns the leap seconds (TAI-UTC).
 
 `astroapi/iers/` is a numpy-only rewrite of [behrouzz/iers](https://github.com/behrouzz/iers).
 IERS data files are downloaded on first use into `astroapi/iers/data/` (override with the
