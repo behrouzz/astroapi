@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from examples import EXAMPLES
 from main import GROUPS
 from routers import eop as eop_router
+from routers import sky as sky_router
 
 
 def direct(name: str, body: dict):
@@ -98,12 +99,47 @@ def main() -> int:
             print(f"MISMATCH {name}: api={api[:4]} direct={exp[:4]}")
             bad += 1
     print(f"{len(EXAMPLES) - bad}/{len(EXAMPLES)} ERFA examples OK")
-    return bad + check_eop(client)
+    return bad + check_eop(client) + check_sky(client)
 
 
 README_EOP = {"px": 0.0069811804398159285, "py": 0.40801708148148286,
               "ut1_utc": -0.01803119438657428, "dx": 0.2808885416666599,
               "dy": -0.16251909722223354}  # iers README, '2024-05-02 21:37:50', kind=1, bulletin B
+
+
+def reference_sky_matrix(utc_year, utc_month, utc_day, utc_hour, utc_minute, utc_second,
+                         lat_deg, lon_deg, dut1=0.0, xp=0.0, yp=0.0):
+    """The original reference implementation of the sky matrix (kept verbatim for checking)."""
+    utc1, utc2 = erfa.dtf2d("UTC", utc_year, utc_month, utc_day, utc_hour, utc_minute, utc_second)
+    tai1, tai2 = erfa.utctai(utc1, utc2)
+    tt1, tt2 = erfa.taitt(tai1, tai2)
+    ut11, ut12 = erfa.utcut1(utc1, utc2, dut1)
+    r_c2t = erfa.c2t06a(tt1, tt2, ut11, ut12, xp, yp)
+    phi, lam = np.deg2rad(lat_deg), np.deg2rad(lon_deg)
+    sin_p, cos_p, sin_l, cos_l = np.sin(phi), np.cos(phi), np.sin(lam), np.cos(lam)
+    r_site = np.array([[-sin_p * cos_l, -sin_p * sin_l, cos_p],
+                       [-sin_l, cos_l, 0.0],
+                       [cos_p * cos_l, cos_p * sin_l, sin_p]])
+    return (r_site @ r_c2t).tolist()
+
+
+def check_sky(client) -> int:
+    """/sky/skymatrix vs. the reference implementation, for the Swagger example and others."""
+    cases = [sky_router.EXAMPLE,
+             dict(utc_year=2006, utc_month=1, utc_day=1, utc_hour=0, utc_minute=0, utc_second=0.0,
+                  lat_deg=-33.9, lon_deg=151.2),
+             dict(utc_year=2016, utc_month=12, utc_day=31, utc_hour=23, utc_minute=59,
+                  utc_second=60.5, lat_deg=0.0, lon_deg=-120.0, dut1=0.4, xp=1e-6, yp=2e-6)]
+    bad = 0
+    for body in cases:
+        r = client.post("/sky/skymatrix", json=body)
+        want = reference_sky_matrix(*body.values())
+        ok = r.status_code == 200 and np.allclose(r.json()["matrix"], want, rtol=0, atol=1e-13)
+        if not ok:
+            bad += 1
+            print(f"FAIL skymatrix {body}: {r.status_code} {r.text[:150]}")
+    print(f"{len(cases) - bad}/{len(cases)} skymatrix checks OK")
+    return bad
 
 
 def _original_iers():

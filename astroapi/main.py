@@ -6,10 +6,10 @@ Docs: http://127.0.0.1:8000/docs
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import astrometry, earth, eop, matrix, miscellaneous, time
+from routers import astrometry, earth, eop, matrix, miscellaneous, sky, time
 
 GROUPS = {"matrix": matrix, "time": time, "earth": earth,
-          "astrometry": astrometry, "miscellaneous": miscellaneous, "eop": eop}
+          "astrometry": astrometry, "miscellaneous": miscellaneous, "eop": eop, "sky": sky}
 
 app = FastAPI(
     title="AstroAPI",
