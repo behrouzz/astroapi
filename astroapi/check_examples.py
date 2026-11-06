@@ -99,7 +99,7 @@ def main() -> int:
             print(f"MISMATCH {name}: api={api[:4]} direct={exp[:4]}")
             bad += 1
     print(f"{len(EXAMPLES) - bad}/{len(EXAMPLES)} ERFA examples OK")
-    return bad + check_eop(client) + check_sky(client)
+    return bad + check_eop(client) + check_sky(client) + check_solarsystem(client)
 
 
 README_EOP = {"px": 0.0069811804398159285, "py": 0.40801708148148286,
@@ -139,6 +139,56 @@ def check_sky(client) -> int:
             bad += 1
             print(f"FAIL skymatrix {body}: {r.status_code} {r.text[:150]}")
     print(f"{len(cases) - bad}/{len(cases)} skymatrix checks OK")
+    return bad
+
+
+# NASA JPL Horizons, 2026-11-06 03:00:00 UT, observer lon -79.38318 lat 43.65323 h 0 (airless):
+# (azimuth, elevation, elongation S-O-T, phase S-T-O, illuminated %, angular diameter ")
+HORIZONS = {
+    "sun": (307.663383431, -52.229340745, None, None, None, None),
+    "mercury": (313.230260779, -53.102110698, 3.4861, 168.9046, 0.93363, 9.862940),
+    "venus": (341.384562520, -57.868124413, 19.8896, 152.1705, 5.78077, 56.88382),
+    "moon": (9.792426125, -52.170123251, None, None, None, None),
+    "mars": (46.998822910, -16.527587030, 82.5524, 37.9206, 89.44278, 6.735230),
+    "jupiter": (45.390193043, -20.100515591, 78.7948, 10.5380, 99.15653, 36.36419),
+    "saturn": (182.464227107, 47.422940078, 145.1799, 3.4384, 99.90975, 19.34106),
+    "uranus": (101.041411486, 41.775688646, 159.2242, 1.0430, None, 3.808868),
+    "neptune": (192.229317647, 45.175524329, 138.2529, 1.2610, None, 2.344258),
+}
+HORIZONS_MOON_GEOCENTRIC = (184.52990, -5.47725, 37.1264)  # RA, Dec, elongation (geocenter)
+
+
+def check_solarsystem(client) -> int:
+    """/sky/solarsystem vs. JPL Horizons (independent ephemeris) for the Swagger example."""
+    r = client.post("/sky/solarsystem", json=sky_router.SOLAR_EXAMPLE)
+    if r.status_code != 200:
+        print(f"FAIL solarsystem: {r.status_code} {r.text[:150]}")
+        return 1
+    bodies, bad, total = r.json()["bodies"], 0, 0
+
+    def fail(msg):
+        nonlocal bad
+        bad += 1
+        print("FAIL solarsystem", msg)
+
+    for name, (az, el, elong, phase, illu, diam) in HORIZONS.items():
+        b = bodies[name]
+        total += 1
+        d_az = abs((b["az"] - az + 180) % 360 - 180) * math.cos(math.radians(el))
+        if max(d_az, abs(b["alt"] - el)) > 40 / 3600:
+            fail(f"{name} alt/az off by more than 40 arcsec: {b['alt']:.4f},{b['az']:.4f} vs {el},{az}")
+        for key, ref, tol in (("elongation", elong, 0.02), ("phase_angle", phase, 0.02),
+                              ("illumination", illu, 0.03), ("angular_diameter", diam, None)):
+            if ref is None:
+                continue
+            ok = abs(b[key] - ref) <= tol if tol else abs(b[key] / ref - 1) < 0.01
+            if not ok:
+                fail(f"{name} {key}: {b[key]} vs Horizons {ref}")
+    m, (ra, dec, elong) = bodies["moon"], HORIZONS_MOON_GEOCENTRIC
+    total += 1
+    if abs(m["ra"] - ra) > 0.01 or abs(m["dec"] - dec) > 0.01 or abs(m["elongation"] - elong) > 0.02:
+        fail(f"moon geocentric ra/dec/elongation: {m}")
+    print(f"{total - bad}/{total} solarsystem checks OK")
     return bad
 
 

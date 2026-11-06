@@ -15,7 +15,7 @@ example in Swagger.
 | `/astrometry` | `routers/astrometry.py` | **SOFA** | SOFA Astrometry Tools |
 | `/miscellaneous` | `routers/miscellaneous.py` | **SOFA** | SOFA Miscellaneous Tools |
 | `/eop` | `routers/eop.py` | Not SOFA, added by Behrouz Safari | Earth Orientation Parameters (`get_eop`) and `leap_seconds` |
-| `/sky` | `routers/sky.py` | Not SOFA, added by Behrouz Safari | `skymatrix`: ICRS to local [North, East, Zenith] rotation matrix |
+| `/sky` | `routers/sky.py` | Not SOFA, added by Behrouz Safari | `skymatrix`: ICRS to local [North, East, Zenith] rotation matrix; `solarsystem`: Sun, Moon and planets |
 
 The groups `/matrix`, `/time`, `/earth`, `/astrometry` and `/miscellaneous` are from SOFA
 (the IAU Standards of Fundamental Astronomy, through pyerfa/ERFA). The groups `/eop` and `/sky`
@@ -66,11 +66,39 @@ Get `dut1`, `xp`, `yp` from `/eop/get_eop` (its `xp`, `yp` are in arcseconds: mu
 
 The response is `{"matrix": [[...], [...], [...]], "warnings": []}` (rows are North, East, Zenith).
 
+## Sun, Moon and planets: `POST /sky/solarsystem` (not SOFA; added by Behrouz Safari)
+
+Position and appearance of the Sun, Moon and the seven planets for an observer at a UTC time and place,
+computed with ERFA (`epv00`, `moon98`, `plan94`, `apco13`, `atciq`, `atioq`), light-time corrected.
+
+```json
+{"utc_year": 2026, "utc_month": 11, "utc_day": 6, "utc_hour": 3, "utc_minute": 0, "utc_second": 0.0,
+ "lat_deg": 43.65323, "lon_deg": -79.38318}
+```
+
+Optional: `height_m`, `dut1`, `xp`, `yp` (radians), `light_time` (default `true`). The response is
+`{"bodies": {"sun": {...}, "mercury": {...}, ...}, "warnings": []}`. Fields per body:
+
+| Field | Bodies | Meaning |
+|---|---|---|
+| `ra`, `dec` | all | geocentric ICRS right ascension (0-360) and declination, degrees |
+| `alt`, `az` | all | topocentric altitude and azimuth (from North through East), degrees; no refraction |
+| `elongation` | Moon, planets | Sun-observer-body angle, degrees |
+| `phase_angle` | Moon, planets | Sun-body-Earth angle, degrees (Moon: approximated as 180 - elongation) |
+| `illumination` | Moon, planets | illuminated fraction of the disk, percent |
+| `magnitude` | planets | approximate apparent visual magnitude (Saturn includes a ring-opening term) |
+| `angular_diameter` | planets | equatorial apparent diameter, arcseconds |
+
+Accuracy: checked against NASA JPL Horizons, altitude/azimuth agree within about 25 arcsec (Sun, Moon
+and inner planets within a few arcsec; the limit is `plan94`). Magnitudes are typically within ~0.2 mag of
+Horizons (more for Mercury at extreme phase angles). Based on a reference script by Behrouz Safari, with the
+planetary angular-diameter constants corrected to the IAU equatorial radii.
+
 ## Checking the examples
 
 `python check_examples.py` (from `astroapi/`) calls every endpoint with its example and
 compares the result with a direct `erfa` call, and checks the EOP endpoints against the IERS README and
-`/sky/skymatrix` against its reference implementation.
+`/sky/skymatrix` against its reference implementation and `/sky/solarsystem` against JPL Horizons values.
 
 ## Earth orientation parameters (`/eop`, not SOFA; added by Behrouz Safari)
 
