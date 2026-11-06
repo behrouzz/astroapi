@@ -1,18 +1,25 @@
 # AstroAPI
 
-IAU SOFA routines (via [pyerfa](https://pyerfa.readthedocs.io/)) and IERS Earth Orientation
-Parameters as a FastAPI service. All 247 ERFA functions are exposed as `POST /<group>/<name>`
-with a ready-to-run example in Swagger.
+IAU SOFA routines (via [pyerfa](https://pyerfa.readthedocs.io/)) as a FastAPI service, plus two
+extra groups of endpoints (Earth Orientation Parameters and a sky matrix) that are **not part of
+SOFA**. All 247 ERFA functions are exposed as `POST /<group>/<name>`, each with a ready-to-run
+example in Swagger.
 
-| Group | Router | Subject |
-|---|---|---|
-| `/matrix` | `routers/matrix.py` | SOFA Vector/Matrix Library |
-| `/time` | `routers/time.py` | SOFA Time Scale and Calendar Tools |
-| `/earth` | `routers/earth.py` | SOFA Tools for Earth Attitude |
-| `/astrometry` | `routers/astrometry.py` | SOFA Astrometry Tools |
-| `/miscellaneous` | `routers/miscellaneous.py` | SOFA Miscellaneous Tools |
-| `/eop` | `routers/eop.py` | Earth Orientation Parameters (`get_eop`) and `leap_seconds` |
-| `/sky` | `routers/sky.py` | `skymatrix`: ICRS to local [North, East, Zenith] rotation matrix |
+## Endpoint groups
+
+| Group | Router | Origin | Subject |
+|---|---|---|---|
+| `/matrix` | `routers/matrix.py` | **SOFA** | SOFA Vector/Matrix Library |
+| `/time` | `routers/time.py` | **SOFA** | SOFA Time Scale and Calendar Tools |
+| `/earth` | `routers/earth.py` | **SOFA** | SOFA Tools for Earth Attitude |
+| `/astrometry` | `routers/astrometry.py` | **SOFA** | SOFA Astrometry Tools |
+| `/miscellaneous` | `routers/miscellaneous.py` | **SOFA** | SOFA Miscellaneous Tools |
+| `/eop` | `routers/eop.py` | Not SOFA, added by Behrouz Safari | Earth Orientation Parameters (`get_eop`) and `leap_seconds` |
+| `/sky` | `routers/sky.py` | Not SOFA, added by Behrouz Safari | `skymatrix`: ICRS to local [North, East, Zenith] rotation matrix |
+
+The groups `/matrix`, `/time`, `/earth`, `/astrometry` and `/miscellaneous` are from SOFA
+(the IAU Standards of Fundamental Astronomy, through pyerfa/ERFA). The groups `/eop` and `/sky`
+are not part of SOFA: they were added by Behrouz Safari.
 
 ## Live deployment
 
@@ -41,7 +48,7 @@ POST a JSON object whose keys are the ERFA argument names; scalars and nested li
 {"utc1": 2400000.5, "utc2": 53736.0}
 ```
 
-## Sky matrix: `POST /sky/skymatrix`
+## Sky matrix: `POST /sky/skymatrix` (not SOFA; added by Behrouz Safari)
 
 Returns one 3x3 matrix **M** that turns an ICRS unit vector `[x, y, z]` into a local
 topocentric vector `[North, East, Zenith]` for an observer at a given UTC time and place:
@@ -65,7 +72,7 @@ The response is `{"matrix": [[...], [...], [...]], "warnings": []}` (rows are No
 compares the result with a direct `erfa` call, and checks the EOP endpoints against the IERS README and
 `/sky/skymatrix` against its reference implementation.
 
-## Earth orientation parameters
+## Earth orientation parameters (`/eop`, not SOFA; added by Behrouz Safari)
 
 `astroapi/iers/` is a numpy-only rewrite of [behrouzz/iers](https://github.com/behrouzz/iers).
 IERS data files are downloaded on first use into `astroapi/iers/data/` (override with the
